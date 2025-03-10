@@ -1,0 +1,27 @@
+clc; clear all; close all;
+
+pathToImages = '.\Crowd_PETS\S2\L1\Time_12-34\View_001\';
+frameIdComp = 4;
+str = ['%sframe_%0' num2str(frameIdComp) 'd.%s']; extName = 'jpg';
+numFrames = 794; % nFrames = 795
+step = 1; i = 1;
+
+figure; hold on,
+for k =0:step:numFrames
+    k
+    img= imread(sprintf(str,pathToImages,k,extName));   
+    
+    vid4D(:,:,:,i) = img;
+    imshow(img); drawnow
+    i = i+1;
+end
+
+bkg = median(vid4D,4); % Get the background (Should try both median and low pass i guess)
+figure; hold on,
+imshow(bkg);
+
+% Now lets get the GroundTruth
+run("readGroundTruth.m");
+
+% Now we get the bounding boxes using our algorithm
+run("detectPedestrian.m");
