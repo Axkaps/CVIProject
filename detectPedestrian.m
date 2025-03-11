@@ -1,7 +1,12 @@
 thr = 50;
 minArea = 200;
+maxArea = 7000;
 ID = 1;
 se = strel('rectangle', [3 10]);
+
+%maxpeople, maxframes
+%centroids = zeros(15, 20); 
+%trajectoryFrame = 0;
 
 figure; hold on
 for i=1:size(vid4D, 4)
@@ -28,8 +33,20 @@ for i=1:size(vid4D, 4)
             upLPoint = min([lin col]);
             dWindow  = max([lin col]) - upLPoint + 1;
             
+            
             rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
                 'linewidth',2);
+
+            %trajectoryFrame = trajectoryFrame + 1; 
+            %if trajectoryFrame == 20
+                %trajectoryFrame = 1;
+            %end
+
+            %delete(centroids(:, trajectoryFrame));
+
+            r = plot(regionProps(inds(j)).Centroid(1),regionProps(inds(j)).Centroid(2),'g.','markersize',20);
+
+            %centroids(j, trajectoryFrame) = r;
             
             textPosition = [fliplr(upLPoint)  - [0, 10]];
             % Display pedestrian ID
