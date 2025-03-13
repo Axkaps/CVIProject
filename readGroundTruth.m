@@ -1,5 +1,5 @@
 pathToFile = '.\PETS-S2L1\gt\gt.txt';
-
+%pathToFile = '../PETS-S2L1/gt/gt.txt';
 groundTruth = csvread(pathToFile);
 
 figure; hold on;

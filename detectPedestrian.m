@@ -44,7 +44,7 @@ for i=1:size(vid4D, 4)
 
             %delete(centroids(:, trajectoryFrame));
 
-            r = plot(regionProps(inds(j)).Centroid(1),regionProps(inds(j)).Centroid(2),'g.','markersize',20);
+            %r = plot(regionProps(inds(j)).Centroid(1),regionProps(inds(j)).Centroid(2),'g.','markersize',20);
 
             %centroids(j, trajectoryFrame) = r;
             
