@@ -44,7 +44,13 @@ for i=1:size(vid4D, 4)
 
             %delete(centroids(:, trajectoryFrame));
 
-            %r = plot(regionProps(inds(j)).Centroid(1),regionProps(inds(j)).Centroid(2),'g.','markersize',20);
+            centroid = regionProps(inds(j)).Centroid;
+
+            if j <= nPedestrians
+                pedestrianDb(j).Centroid = centroid;
+            end
+
+            r = plot(centroid(1), centroid(2), 'g.', 'MarkerSize', 20);
 
             %centroids(j, trajectoryFrame) = r;
             
