@@ -1,7 +1,7 @@
 clc; clear all; close all;
-% Path no mac - ../Crowd_PETS/S2/L1/Time_12-34/View_001/
-pathToImages = '../Crowd_PETS/S2/L1/Time_12-34/View_001/';
-%pathToImages = '.\Crowd_PETS\S2\L1\Time_12-34\View_001\';
+% Path no mac -
+%pathToImages = '../Crowd_PETS/S2/L1/Time_12-34/View_001/';
+pathToImages = '.\Crowd_PETS\S2\L1\Time_12-34\View_001\';
 frameIdComp = 4;
 str = ['%sframe_%0' num2str(frameIdComp) 'd.%s']; extName = 'jpg';
 numFrames = 794; % nFrames = 795
@@ -30,7 +30,6 @@ for i = 1:10
     pedestrianDb(i).ID = i;
     pedestrianDb(i).Centroid = [i, i];
 end
-
 
 % Now lets get the GroundTruth
 run("readGroundTruth.m");
