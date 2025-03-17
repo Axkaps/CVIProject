@@ -1,7 +1,3 @@
-pathToFile = '.\PETS-S2L1\gt\gt.txt';
-%pathToFile = '../PETS-S2L1/gt/gt.txt';
-groundTruth = csvread(pathToFile);
-
 figure; hold on;
 
 % Loop through each detection in the frame and plot the bounding box

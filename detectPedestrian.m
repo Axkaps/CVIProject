@@ -13,10 +13,38 @@ pedestrianDb = struct("ID", {}, "Centroid", {}, "BoundingBox", {}, "Trajectory",
 
 figure; hold on
 for i=1:size(vid4D, 4)
+
     imgfr = vid4D(:,:,:,i);
     imgdif = (abs(double(bkg(:,:,1))-double(imgfr(:,:,1))) > thr) | ...
         (abs(double(bkg(:,:,2))-double(imgfr(:,:,2))) > thr) | ...
         (abs(double(bkg(:,:,3))-double(imgfr(:,:,3))) > thr);
+
+    %Draw GT bbox (not working)
+    frameData = groundTruth(groundTruth(:,1) == (i + 1), :);
+    imagePath = sprintf(str,pathToImages,i,extName);
+
+    cla;
+    % Display the image
+
+    for k = 1:size(frameData, 1)
+        % Box data
+        x = frameData(k, 3); % Box left
+        y = frameData(k, 4); % box top
+        w = frameData(k, 5); % box width
+        h = frameData(k, 6); % box height
+        ID = frameData(k, 2); % pedestrian ID
+    
+        
+        % Draw bounding box
+        rectangle('Position', [x, y, w, h], 'EdgeColor', 'r', 'LineWidth', 2);
+    
+        % Display pedestrian ID
+        text(x, y - 5, sprintf('ID: %d', ID), 'Color', 'yellow', ...
+            'FontSize', 10, 'FontWeight', 'bold');
+    end
+
+
+    
 
     % bw1 = imclose(imgdif,se);
     % bw2 = imerode(bw1,se);
@@ -41,7 +69,7 @@ for i=1:size(vid4D, 4)
             dWindow  = max([lin col]) - upLPoint + 1;
             
             %rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
-                %'linewidth',2);
+             %   'linewidth',2);
 
             %trajectoryFrame = trajectoryFrame + 1; 
             %if trajectoryFrame == 20
@@ -81,15 +109,18 @@ for i=1:size(vid4D, 4)
                 next_id = next_id + 1;
             end
 
-            plot(centroid(1), centroid(2), 'g.', 'MarkerSize', 20);
+            if drawTrajectory
+                plot(centroid(1), centroid(2), 'g.', 'MarkerSize', 20);
 
-            if best_match_idx ~= -1
-                traj = pedestrianDb(best_match_idx).Trajectory;
-                if size(traj, 1) > 1
-                    plot(traj(:, 1), traj(:, 2), 'g-', 'LineWidth', 2); 
-
+                if best_match_idx ~= -1
+                    traj = pedestrianDb(best_match_idx).Trajectory;
+                    if size(traj, 1) > 1
+                        plot(traj(:, 1), traj(:, 2), 'g-', 'LineWidth', 2); 
+    
+                    end
                 end
             end
+            
             %centroids(j, trajectoryFrame) = r;
             
             textPosition = [fliplr(upLPoint)  - [0, 10]];
