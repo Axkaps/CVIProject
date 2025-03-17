@@ -19,33 +19,6 @@ for i=1:size(vid4D, 4)
         (abs(double(bkg(:,:,2))-double(imgfr(:,:,2))) > thr) | ...
         (abs(double(bkg(:,:,3))-double(imgfr(:,:,3))) > thr);
 
-    %Draw GT bbox (not working)
-    frameData = groundTruth(groundTruth(:,1) == (i + 1), :);
-    imagePath = sprintf(str,pathToImages,i,extName);
-
-    cla;
-    % Display the image
-
-    for k = 1:size(frameData, 1)
-        % Box data
-        x = frameData(k, 3); % Box left
-        y = frameData(k, 4); % box top
-        w = frameData(k, 5); % box width
-        h = frameData(k, 6); % box height
-        ID = frameData(k, 2); % pedestrian ID
-    
-        
-        % Draw bounding box
-        rectangle('Position', [x, y, w, h], 'EdgeColor', 'r', 'LineWidth', 2);
-    
-        % Display pedestrian ID
-        text(x, y - 5, sprintf('ID: %d', ID), 'Color', 'yellow', ...
-            'FontSize', 10, 'FontWeight', 'bold');
-    end
-
-
-    
-
     % bw1 = imclose(imgdif,se);
     % bw2 = imerode(bw1,se);
     bw = imgdif;
@@ -62,14 +35,16 @@ for i=1:size(vid4D, 4)
     imshow(imgfr);
     hold on;
 
+    drawGT(i, groundTruth);
+
     if regnum
         for j=1:regnum
             [lin col]= find(lb == inds(j));
             upLPoint = min([lin col]);
-            dWindow  = max([lin col]) - upLPoint + 1;
-            
-            %rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
-             %   'linewidth',2);
+            dWindow  = max([lin col]) - upLPoint + 1;      
+
+            rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
+                'linewidth',2);
 
             %trajectoryFrame = trajectoryFrame + 1; 
             %if trajectoryFrame == 20
@@ -146,4 +121,30 @@ function iou = computeIoU(boxA, boxB)
     boxBArea = boxB(3) * boxB(4);
     
     iou = interArea / (boxAArea + boxBArea - interArea);
+end
+
+%Almost duplicated function from readGroundTruth.m
+function drawGT(i, groundTruth)
+
+    frameData = groundTruth(groundTruth(:,1) == (i + 1), :);
+
+    cla;
+
+    for k = 1:size(frameData, 1)
+        % Box data
+        x = frameData(k, 3); % Box left
+        y = frameData(k, 4); % box top
+        w = frameData(k, 5); % box width
+        h = frameData(k, 6); % box height
+        ID = frameData(k, 2); % pedestrian ID
+    
+        
+        % Draw bounding box
+        rectangle('Position', [x, y, w, h], 'EdgeColor', 'b', 'LineWidth', 2);
+    
+        % Display pedestrian ID
+        %text(x, y - 5, sprintf('ID: %d', ID), 'Color', 'yellow', ...
+          %  'FontSize', 10, 'FontWeight', 'bold');
+    end
+
 end

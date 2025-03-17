@@ -1,8 +1,14 @@
 figure; hold on;
 
+
 % Loop through each detection in the frame and plot the bounding box
 for i = 0:numFrames
+    drawGT(i, groundTruth, str, pathToImages, extName);
+end
 
+
+function drawGT(i, groundTruth, str, pathToImages, extName)
+    
     frameData = groundTruth(groundTruth(:,1) == (i + 1), :);
     imagePath = sprintf(str,pathToImages,i,extName);
     img = imread(imagePath);
@@ -21,7 +27,7 @@ for i = 0:numFrames
     
         
         % Draw bounding box
-        rectangle('Position', [x, y, w, h], 'EdgeColor', 'r', 'LineWidth', 2);
+        rectangle('Position', [x, y, w, h], 'EdgeColor', 'b', 'LineWidth', 2);
     
         % Display pedestrian ID
         text(x, y - 5, sprintf('ID: %d', ID), 'Color', 'yellow', ...
@@ -31,4 +37,3 @@ for i = 0:numFrames
     drawnow;
 
 end
-
