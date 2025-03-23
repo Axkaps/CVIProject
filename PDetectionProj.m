@@ -20,7 +20,7 @@ switch sectionInput
         drawTrajectory = false;
         run("getGroundTruthMatrix.m")
         run('calculateBackground.m')
-        %run('detectPedestrian.m')
+        run('detectPedestrian.m')
     case 3 %Detect pedestrian, buth GT and ours with trajectory
         drawTrajectory = true;
         run('calculateBackground.m')

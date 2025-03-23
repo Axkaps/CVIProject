@@ -6,12 +6,14 @@ se = strel('rectangle', [3 10]);
 max_trajec_len = 10;
 next_id = 1;
 pedestrianDb = struct("ID", {}, "Centroid", {}, "BoundingBox", {}, "Trajectory", {}); 
+height = 576;
+width = 768;
 
 %maxpeople, maxframes
 %centroids = zeros(15, 20); 
 %trajectoryFrame = 0;
 
-figure; hold on
+% figure; hold on
 for i=1:size(vid4D, 4)
 
     imgfr = vid4D(:,:,:,i);
@@ -28,7 +30,7 @@ for i=1:size(vid4D, 4)
     % Use lb matrix to be my detector matrix
     [lb num]=bwlabel(bw); 
     regionProps = regionprops(lb, 'Area', 'BoundingBox', 'Centroid');
-    inds = find([regionProps.Area] > minArea & [regionProps.Area] < maxArea);
+    inds = find([regionProps.Area] > minArea & [regionProps.Area] < maxArea); % gotta do a new one for the split version
     
     regnum = length(inds);
 
@@ -36,11 +38,95 @@ for i=1:size(vid4D, 4)
     imshow(imgfr);
     hold on;
 
-    drawGT(i, groundTruth);
-
+    % Compute the association matrix
     if regnum
+        DetectorMatrix = zeros(height, width);
+    
         for j=1:regnum
-            [lin col]= find(lb == inds(j));
+        
+                bbox = regionProps(inds(j)).BoundingBox;
+                % Basta criar uma frame para comparar e fazer o split nao
+                % preciso de guardar para nada
+                adjusted_bbox = [bbox(1)-0.5, bbox(2)-0.5, bbox(3), bbox(4)];
+                
+                % Convert BoundingBox coordinates to integer indices
+                x_min = floor(adjusted_bbox(1)) + 1; % Leftmost column (1-based)
+                y_min = floor(adjusted_bbox(2)) + 1; % Topmost row (1-based)
+                x_max = floor(adjusted_bbox(1) + adjusted_bbox(3)); % Rightmost column
+                y_max = floor(adjusted_bbox(2) + adjusted_bbox(4)); % Bottommost row
+    
+                % Ensure indices are within matrix bounds
+                x_min = max(1, x_min);
+                y_min = max(1, y_min);
+                x_max = min(width, x_max);
+                y_max = min(height, y_max);
+    
+                DetectorMatrix(y_min:y_max, x_min:x_max) = 1;
+    
+        end
+        
+           
+        [L_gt, num_gt] = bwlabel(groundTruthMatrix(:,:, i));    % Label GT objects
+        [L_det, num_det] = bwlabel(DetectorMatrix);            % Label detected objects
+        
+        C = zeros(num_gt, num_det); % Initialize association matrix
+    
+        for l = 1:num_gt
+            for m = 1:num_det
+                % Find pixels belonging to GT object i
+                gt_mask = (L_gt == l);
+        
+                % Find pixels belonging to detected object j
+                det_mask = (L_det == m);
+        
+                % Compute Intersection and Union
+                intersection = sum(gt_mask(:) & det_mask(:));
+                union = sum(gt_mask(:) | det_mask(:)); 
+        
+                % Store Intersection over Union (IoU)
+                if union > 0
+                    C(l, m) = intersection / union;
+                end
+            end
+        end
+    disp(C)
+        merged_detections = find(sum(C, 1) > 0.5);
+
+        % Now we gotta split 
+        props = regionprops(L_det, 'BoundingBox');
+        for j = merged_detections
+            % Get bounding box of merged detection
+            bbox = round(props(j).BoundingBox); % [x, y, width, height]
+        
+            % Ensure indices are within bounds
+            x1 = max(1, bbox(1));                % Left boundary
+            y1 = max(1, bbox(2));                % Top boundary
+            x2 = min(width, bbox(1) + bbox(3));      % Right boundary
+            y2 = min(height, bbox(2) + bbox(4));      % Bottom boundary
+        
+            % Extract region from the detection mask
+            sub_img = L_det(y1:y2, x1:x2);
+        
+            % Find contours
+            contours = bwconncomp(sub_img);
+        
+            if contours.NumObjects > 1
+                disp(['Splitting detection ', num2str(j), ' into ', num2str(contours.NumObjects), ' objects.']);
+        
+                % Label each region separately
+                L_det(y1:y2, x1:x2) = bwlabel(sub_img);
+            end
+        end
+        
+        
+        regionProps = regionprops(L_det, 'Area', 'BoundingBox', 'Centroid');
+        inds = find([regionProps.Area] > minArea ); % gotta do a new one for the split version
+        regnum = length(inds);
+        % drawGT(i, groundTruth, str, pathToImages, extName);
+
+    
+        for j=1:regnum
+            [lin col]= find(L_det == inds(j));
             upLPoint = min([lin col]);
             dWindow  = max([lin col]) - upLPoint + 1;      
 
@@ -111,17 +197,5 @@ for i=1:size(vid4D, 4)
     drawnow;
 end
 
-function iou = computeIoU(boxA, boxB)
-    xA = max(boxA(1), boxB(1)); % leftmost edge of inter area
-    yA = max(boxA(2), boxB(2)); % biggest y value (since we'll add the other box's height to its y value)
-    xB = min(boxA(1) + boxA(3), boxB(1) + boxB(3)); % minimum since we want to know where's the rightmost edge of the inter area
-    yB = min(boxA(2) + boxA(4), boxB(2) + boxB(4)); % we later get the height of the inter area
-
-    interArea = max(0, xB - xA) * max(0, yB - yA); % cant be negative, which could happen if there was no overlap
-    boxAArea = boxA(3) * boxA(4);
-    boxBArea = boxB(3) * boxB(4);
-    
-    iou = interArea / (boxAArea + boxBArea - interArea);
-end
 
     
