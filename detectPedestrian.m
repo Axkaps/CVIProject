@@ -25,7 +25,8 @@ for i=1:size(vid4D, 4)
     % bw = imerode(bw, se); % Reduce objects trying to mitigate double detection
     % bw = imdilate(bw, se); % tentativa
    
-    [lb num]=bwlabel(bw);
+    % Use lb matrix to be my detector matrix
+    [lb num]=bwlabel(bw); 
     regionProps = regionprops(lb, 'Area', 'BoundingBox', 'Centroid');
     inds = find([regionProps.Area] > minArea & [regionProps.Area] < maxArea);
     
@@ -123,28 +124,4 @@ function iou = computeIoU(boxA, boxB)
     iou = interArea / (boxAArea + boxBArea - interArea);
 end
 
-%Almost duplicated function from readGroundTruth.m
-function drawGT(i, groundTruth)
-
-    frameData = groundTruth(groundTruth(:,1) == (i + 1), :);
-
-    cla;
-
-    for k = 1:size(frameData, 1)
-        % Box data
-        x = frameData(k, 3); % Box left
-        y = frameData(k, 4); % box top
-        w = frameData(k, 5); % box width
-        h = frameData(k, 6); % box height
-        ID = frameData(k, 2); % pedestrian ID
     
-        
-        % Draw bounding box
-        rectangle('Position', [x, y, w, h], 'EdgeColor', 'b', 'LineWidth', 2);
-    
-        % Display pedestrian ID
-        %text(x, y - 5, sprintf('ID: %d', ID), 'Color', 'yellow', ...
-          %  'FontSize', 10, 'FontWeight', 'bold');
-    end
-
-end

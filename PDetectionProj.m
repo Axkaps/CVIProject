@@ -1,4 +1,4 @@
-clc; clear all; close all;
+clc; clear all; close all; 
 
 pathToImages = '.\Crowd_PETS\S2\L1\Time_12-34\View_001\';
 frameIdComp = 4;
@@ -18,8 +18,9 @@ switch sectionInput
         run('readGroundTruth.m')
     case 2 %Detect pedestrian, buth GT and ours without trajectory
         drawTrajectory = false;
+        run("getGroundTruthMatrix.m")
         run('calculateBackground.m')
-        run('detectPedestrian.m')
+        %run('detectPedestrian.m')
     case 3 %Detect pedestrian, buth GT and ours with trajectory
         drawTrajectory = true;
         run('calculateBackground.m')
