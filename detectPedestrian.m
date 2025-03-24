@@ -9,6 +9,11 @@ pedestrianDb = struct("ID", {}, "Centroid", {}, "BoundingBox", {}, "Trajectory",
 height = 576;
 width = 768;
 
+sigma = 20;
+heatmap = zeros(height, width);
+dynamicHeatmap = zeros(height, width);
+heatmapDecay = 0.99;
+
 %maxpeople, maxframes
 %centroids = zeros(15, 20); 
 %trajectoryFrame = 0;
@@ -35,6 +40,10 @@ for i=1:size(vid4D, 4)
     regnum = length(inds);
 
     clf;
+    if drawHeatmap
+        subplot(2, 2, 1);
+        title('Pedestrian Detection');
+    end
     imshow(imgfr);
     hold on;
 
@@ -181,6 +190,7 @@ for i=1:size(vid4D, 4)
                     end
                 end
             end
+
             
             %centroids(j, trajectoryFrame) = r;
             
@@ -189,12 +199,42 @@ for i=1:size(vid4D, 4)
             text(textPosition(1), textPosition(2), sprintf('ID: %d', ID), 'Color', 'yellow', ...
             'FontSize', 10, 'FontWeight', 'bold');
             ID = ID + 1;
+
+            %Draw heatmaps
+            if drawHeatmap
+                centroidHeatmap = round(centroid);
+                xH = min(max(centroidHeatmap(1), 1), width);
+                yH = min(max(centroidHeatmap(2), 1), height);
+    
+                [XH, YH] = meshgrid(1:width, 1:height);
+                gaussian = exp(-((XH - xH).^2 + (YH - yH).^2) / (2 * sigma^2));
+        
+                heatmap = heatmap + gaussian;
+    
+                dynamicHeatmap = dynamicHeatmap + gaussian;
+                %Apply decay factor for dynamic heatmap
+                dynamicHeatmap = dynamicHeatmap * heatmapDecay;
+            end
+
         end
         ID = 1; % Provisory labels
+    end
+
+    if drawHeatmap
+        subplot(2, 2, 2);
+        imshow(heatmap, []);
+        colormap("jet");  
+        colorbar;
+        title('Static Heatmap');
+    
+        subplot(2, 2, 3);
+        imshow(dynamicHeatmap, []);
+        colormap("jet"); 
+        colorbar; 
+        title('Dynamic Heatmap');
     end
 
     drawnow;
 end
 
 
-    
