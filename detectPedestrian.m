@@ -65,7 +65,6 @@ for i=1:size(vid4D, 4)
     
         end
         
-           
         [L_gt, num_gt] = bwlabel(groundTruthMatrix(:,:, i));    % Label GT objects
         [L_det, num_det] = bwlabel(DetectorMatrix);            % Label detected objects
         
@@ -85,11 +84,11 @@ for i=1:size(vid4D, 4)
         
                 % Store Intersection over Union (IoU)
                 if union > 0
-                    C(l, m) = intersection / union;
+                    C(l, m) = (intersection / union) > 0.5;
                 end
             end
         end
-    disp(C)
+        %disp(C) % So é necessario contabilizar o numero de merges
         merged_detections = find(sum(C, 1) > 0.5);
 
         % Now we gotta split 

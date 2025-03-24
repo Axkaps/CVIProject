@@ -1,12 +1,13 @@
 clc; clear all; close all; 
 
-pathToImages = '.\Crowd_PETS\S2\L1\Time_12-34\View_001\';
+%pathToImages = '.\Crowd_PETS\S2\L1\Time_12-34\View_001\';
+pathToImages = '../Crowd_PETS/S2/L1/Time_12-34/View_001/';
 frameIdComp = 4;
 str = ['%sframe_%0' num2str(frameIdComp) 'd.%s']; extName = 'jpg';
-numFrames = 794; % nFrames = 795
+numFrames = 795; % nFrames = 795
 
-pathToFile = '.\PETS-S2L1\gt\gt.txt';
-%pathToFile = '../PETS-S2L1/gt/gt.txt';
+%pathToFile = '.\PETS-S2L1\gt\gt.txt';
+pathToFile = '../PETS-S2L1/gt/gt.txt';
 groundTruth = csvread(pathToFile);
 
 drawTrajectory = false;

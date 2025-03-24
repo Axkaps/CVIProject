@@ -10,9 +10,9 @@ numFrames = 794; % nFrames = 795
 step = 1; i = 1;
 
 %figure; hold on,
-for k =0:step:numFrames
+for k =1:step:numFrames
     k
-    img= imread(sprintf(str,pathToImages,k,extName));   
+    img= imread(sprintf(str,pathToImages,k-1,extName));   
     
     vid4D(:,:,:,i) = img;
     %imshow(img); drawnow
