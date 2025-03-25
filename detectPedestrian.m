@@ -233,8 +233,30 @@ for i=1:size(vid4D, 4)
         colorbar; 
         title('Dynamic Heatmap');
     end
-
     drawnow;
+    end
+
+% EM algorithm
+X = [];
+for i = 1:length(pedestrianDb)
+    X = [X; pedestrianDb(i).Trajectory];
+end
+
+K = 3;
+
+if ~isempty(X)
+    % fitgmdist performs EM using k-means for parameter init; regularizationValue
+    % pervents issues (outliers, etc)
+    gmmModel = fitgmdist(X, K, 'RegularizationValue', 0.1); 
+    clusterLabels = cluster(gmmModel, X);
+    figure; hold on;
+    colors = ['r', 'g', 'b', 'y', 'm'];
+    for k = 1:K
+        scatter(X(clusterLabels == k, 1), X(clusterLabels == k, 2), 10, colors(k), 'filled');
+    end
+    title('Pedestrian Trajectory Clusters');
+    xlabel('X Position'); ylabel('Y Position');
+    legend('Cluster 1', 'Cluster 2', 'Cluster 3');
 end
 
 
