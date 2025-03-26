@@ -1,5 +1,5 @@
 % Path no mac -
-%pathToImages = '../Crowd_PETS/S2/L1/Time_12-34/View_001/';
+pathToImages = '../Crowd_PETS/S2/L1/Time_12-34/View_001/';
 %{
 pathToImages = '.\Crowd_PETS\S2\L1\Time_12-34\View_001\';
 frameIdComp = 4;
