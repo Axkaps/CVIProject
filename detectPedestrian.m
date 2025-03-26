@@ -44,7 +44,7 @@ for i=1:size(vid4D, 4)
         subplot(2, 2, 1);
         title('Pedestrian Detection');
     end
-    imshow(imgfr);
+    %imshow(imgfr);
     hold on;
 
     % Compute the association matrix
@@ -97,44 +97,13 @@ for i=1:size(vid4D, 4)
                 end
             end
         end
-        %disp(C) % So é necessario contabilizar o numero de merges
-        merged_detections = find(sum(C, 1) > 0.5);
-
-        % Now we gotta split 
-        props = regionprops(L_det, 'BoundingBox');
-        for j = merged_detections
-            % Get bounding box of merged detection
-            bbox = round(props(j).BoundingBox); % [x, y, width, height]
-        
-            % Ensure indices are within bounds
-            x1 = max(1, bbox(1));                % Left boundary
-            y1 = max(1, bbox(2));                % Top boundary
-            x2 = min(width, bbox(1) + bbox(3));      % Right boundary
-            y2 = min(height, bbox(2) + bbox(4));      % Bottom boundary
-        
-            % Extract region from the detection mask
-            sub_img = L_det(y1:y2, x1:x2);
-        
-            % Find contours
-            contours = bwconncomp(sub_img);
-        
-            if contours.NumObjects > 1
-                disp(['Splitting detection ', num2str(j), ' into ', num2str(contours.NumObjects), ' objects.']);
-        
-                % Label each region separately
-                L_det(y1:y2, x1:x2) = bwlabel(sub_img);
-            end
-        end
-        
-        
-        regionProps = regionprops(L_det, 'Area', 'BoundingBox', 'Centroid');
-        inds = find([regionProps.Area] > minArea ); % gotta do a new one for the split version
-        regnum = length(inds);
+        disp(C) % So é necessario contabilizar o numero de merges
+                
         % drawGT(i, groundTruth, str, pathToImages, extName);
 
     
         for j=1:regnum
-            [lin col]= find(L_det == inds(j));
+            [lin col]= find(lb == inds(j));
             upLPoint = min([lin col]);
             dWindow  = max([lin col]) - upLPoint + 1;      
 
@@ -150,12 +119,37 @@ for i=1:size(vid4D, 4)
 
             centroid = regionProps(inds(j)).Centroid;
             bbox = regionProps(inds(j)).BoundingBox;
+            
+            % x_min = floor(bbox(1)) + 1;
+            % y_min = floor(bbox(2)) + 1;
+            % x_max = min(width, floor(bbox(1) + bbox(3)));
+            % y_max = min(height, floor(bbox(2) + bbox(4)));
+            % 
+            % % Crop the detection region
+            % croppedRegion = imgfr(y_min:y_max, x_min:x_max, :);
+            % % Compute histograms for each channel
+            % numBins = 16;  % Adjust as needed
+            % histR = histcounts(croppedRegion(:,:,1), numBins);
+            % histG = histcounts(croppedRegion(:,:,2), numBins);
+            % histB = histcounts(croppedRegion(:,:,3), numBins);
+            % 
+            % % Normalize histograms (optional)
+            % histR = histR / sum(histR);
+            % histG = histG / sum(histG);
+            % histB = histB / sum(histB);
+            % 
+            % % Store the histogram in the pedestrian database
+            % pedestrianDb(end).Histogram = [histR, histG, histB]; 
 
             assigned_id = -1;
             max_iou = 0;
             best_match_idx = -1;
 
             for k = 1:length(pedestrianDb)
+
+                
+
+
                 iou = computeIoU(bbox, pedestrianDb(k).BoundingBox);
                 if iou > max_iou && iou > 0.5  % IoU threshold (like discussed during the labs)
                     max_iou = iou;
@@ -234,7 +228,7 @@ for i=1:size(vid4D, 4)
         title('Dynamic Heatmap');
     end
     drawnow;
-    end
+end
 
 % EM algorithm
 X = [];
