@@ -1,5 +1,5 @@
 thr = 50;
-minArea = 200;
+minArea = 100;
 maxArea = 7000;
 se = strel('rectangle', [3 10]);
 max_trajec_len = 10;
@@ -11,12 +11,13 @@ sigma = 20;
 heatmap = zeros(height, width);
 dynamicHeatmap = zeros(height, width);
 heatmapDecay = 0.99;
+associationMatrixCellArray = {}; % Empty cell array
 
 %maxpeople, maxframes
 %centroids = zeros(15, 20); 
 %trajectoryFrame = 0;
 
-% figure; hold on
+
 for i=1:size(vid4D, 4)
 
     imgfr = vid4D(:,:,:,i);
@@ -34,72 +35,23 @@ for i=1:size(vid4D, 4)
     [lb num]=bwlabel(bw); 
     regionProps = regionprops(lb, 'Area', 'BoundingBox', 'Centroid');
     inds = find([regionProps.Area] > minArea & [regionProps.Area] < maxArea); % gotta do a new one for the split version
-    
+    imshow(lb); hold on;
     regnum = length(inds);
+    
 
-    clf;
     if drawHeatmap
         subplot(2, 2, 1);
         title('Pedestrian Detection');
     end
-    imshow(imgfr);
-    hold on;
+    %imshow(imgfr); hold on;
 
     % Compute the association matrix
     if regnum
-        DetectorMatrix = zeros(height, width);
-    
-        for j=1:regnum
+        associationMatrixCellArray{i} = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
         
-                bbox = regionProps(inds(j)).BoundingBox;
-                % Basta criar uma frame para comparar e fazer o split nao
-                % preciso de guardar para nada
-                adjusted_bbox = [bbox(1)-0.5, bbox(2)-0.5, bbox(3), bbox(4)];
-                
-                % Convert BoundingBox coordinates to integer indices
-                x_min = floor(adjusted_bbox(1)) + 1; % Leftmost column (1-based)
-                y_min = floor(adjusted_bbox(2)) + 1; % Topmost row (1-based)
-                x_max = floor(adjusted_bbox(1) + adjusted_bbox(3)); % Rightmost column
-                y_max = floor(adjusted_bbox(2) + adjusted_bbox(4)); % Bottommost row
-    
-                % Ensure indices are within matrix bounds
-                x_min = max(1, x_min);
-                y_min = max(1, y_min);
-                x_max = min(width, x_max);
-                y_max = min(height, y_max);
-    
-                DetectorMatrix(y_min:y_max, x_min:x_max) = 1;
-    
-        end
         
-        [L_gt, num_gt] = bwlabel(groundTruthMatrix(:,:, i));    % Label GT objects
-        [L_det, num_det] = bwlabel(DetectorMatrix);            % Label detected objects
-        
-        C = zeros(num_gt, num_det); % Initialize association matrix
-    
-        for l = 1:num_gt
-            for m = 1:num_det
-                % Find pixels belonging to GT object i
-                gt_mask = (L_gt == l);
-        
-                % Find pixels belonging to detected object j
-                det_mask = (L_det == m);
-        
-                % Compute Intersection and Union
-                intersection = sum(gt_mask(:) & det_mask(:));
-                union = sum(gt_mask(:) | det_mask(:)); 
-        
-                % Store Intersection over Union (IoU)
-                if union > 0
-                    C(l, m) = (intersection / union) > 0.5;
-                end
-            end
-        end
         % disp(C) % So é necessario contabilizar o numero de merges
-                
-        % drawGT(i, groundTruth, str, pathToImages, extName);
 
-        disp(pedestrianDb)
         for j=1:regnum
             maxMatchScore = -inf;  % Reset for each detection
             best_match_idx = -1;
@@ -110,16 +62,6 @@ for i=1:size(vid4D, 4)
 
             rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
                 'linewidth',2);
-
-            %trajectoryFrame = trajectoryFrame + 1; 
-            %if trajectoryFrame == 20
-                %trajectoryFrame = 1;
-            %end
-
-            %delete(centroids(:, trajectoryFrame));
-            if regionProps(inds(j)).Area > 2300
-                continue;
-            end
 
             centroid = regionProps(inds(j)).Centroid;
             bbox = regionProps(inds(j)).BoundingBox;
@@ -138,7 +80,6 @@ for i=1:size(vid4D, 4)
             histG = histcounts(croppedRegion(:,:,2), numBins);
             histB = histcounts(croppedRegion(:,:,3), numBins);
 
-            % Normalize histograms (optional)
             histR = histR / sum(histR);
             histG = histG / sum(histG);
             histB = histB / sum(histB);
@@ -148,16 +89,7 @@ for i=1:size(vid4D, 4)
             similarityTreshold = 0.7; % Tem de ser menor que isto
             distanceThreshold = 100;
             
-            for k = 1:length(pedestrianDb)
-
-                % Compute distance so all the pedestrians already in DB with Treshold
-
-                % If not there already than add to db with centroid and new ID
-    
-                % If it is there we should update centroid and histogram and
-                % keep the label
-                    
-                
+            for k = 1:length(pedestrianDb)                    
 
                 % IoU entre bbox de dois frames consecutivos
                 iou = computeIoU(bbox, pedestrianDb(k).BoundingBox);
@@ -247,6 +179,7 @@ for i=1:size(vid4D, 4)
         title('Dynamic Heatmap');
     end
     drawnow;
+    hold off;
 end
 
 % EM algorithm
@@ -255,7 +188,7 @@ for i = 1:length(pedestrianDb)
     X = [X; pedestrianDb(i).Trajectory];
 end
 
-K = 3;
+K = 1;
 
 if ~isempty(X)
     % fitgmdist performs EM using k-means for parameter init; regularizationValue
