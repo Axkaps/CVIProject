@@ -2,7 +2,6 @@ thr = 50;
 minArea = 100;
 maxArea = 7000;
 se = strel('rectangle', [3 10]);
-max_trajec_len = 10;
 next_id = 1;
 pedestrianDb = struct("ID", {}, "Centroid", {}, "BoundingBox", {}, "Trajectory", {}, "Histogram", {}); 
 height = 576;
@@ -13,10 +12,9 @@ dynamicHeatmap = zeros(height, width);
 heatmapDecay = 0.99;
 associationMatrixCellArray = {}; % Empty cell array
 
-%maxpeople, maxframes
-%centroids = zeros(15, 20); 
-%trajectoryFrame = 0;
 
+% Load the db I have
+load('pedestrianDB.mat', 'pedestrianDb');
 
 for i=1:size(vid4D, 4)
 
@@ -25,17 +23,12 @@ for i=1:size(vid4D, 4)
         (abs(double(bkg(:,:,2))-double(imgfr(:,:,2))) > thr) | ...
         (abs(double(bkg(:,:,3))-double(imgfr(:,:,3))) > thr);
 
-    % bw1 = imclose(imgdif,se);
-    % bw2 = imerode(bw1,se);
     bw = imgdif;
-    % bw = imerode(bw, se); % Reduce objects trying to mitigate double detection
-    % bw = imdilate(bw, se); % tentativa
-   
+
     % Use lb matrix to be my detector matrix
-    [lb num]=bwlabel(bw); 
+    [lb num] = bwlabel(bw); 
     regionProps = regionprops(lb, 'Area', 'BoundingBox', 'Centroid');
-    inds = find([regionProps.Area] > minArea & [regionProps.Area] < maxArea); % gotta do a new one for the split version
-    imshow(lb); hold on;
+    inds = find([regionProps.Area] > minArea & [regionProps.Area] < maxArea);
     regnum = length(inds);
     
 
@@ -43,87 +36,22 @@ for i=1:size(vid4D, 4)
         subplot(2, 2, 1);
         title('Pedestrian Detection');
     end
-    %imshow(imgfr); hold on;
+    imshow(imgfr); hold on;
 
     % Compute the association matrix
     if regnum
         associationMatrixCellArray{i} = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
         
-        
-        % disp(C) % So é necessario contabilizar o numero de merges
 
-        for j=1:regnum
-            maxMatchScore = -inf;  % Reset for each detection
-            best_match_idx = -1;
+        for j=inds
             currentID = [];
-            [lin col]= find(lb == inds(j));
+            [lin col]= find(lb == j);
             upLPoint = min([lin col]);
             dWindow  = max([lin col]) - upLPoint + 1;      
 
-            rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
-                'linewidth',2);
 
-            centroid = regionProps(inds(j)).Centroid;
-            bbox = regionProps(inds(j)).BoundingBox;
-            
-            x_min = floor(bbox(1)) + 1;
-            y_min = floor(bbox(2)) + 1;
-            x_max = min(width, floor(bbox(1) + bbox(3)));
-            y_max = min(height, floor(bbox(2) + bbox(4)));
-
-            % Crop the detection region, fica so mm o crop perfeitinho
-            croppedRegion = imgfr(y_min:y_max, x_min:x_max, :);
-            
-            % Compute histograms for each channel
-            numBins = 256;
-            histR = histcounts(croppedRegion(:,:,1), numBins);
-            histG = histcounts(croppedRegion(:,:,2), numBins);
-            histB = histcounts(croppedRegion(:,:,3), numBins);
-
-            histR = histR / sum(histR);
-            histG = histG / sum(histG);
-            histB = histB / sum(histB);
-
-            max_iou = 0;
-            best_match_idx = -1;
-            similarityTreshold = 0.7; % Tem de ser menor que isto
-            distanceThreshold = 100;
-            
-            for k = 1:length(pedestrianDb)                    
-
-                % IoU entre bbox de dois frames consecutivos
-                iou = computeIoU(bbox, pedestrianDb(k).BoundingBox);
-                bDistance = bhattacharyya(pedestrianDb(k).Histogram, [histR, histG, histB]);
-                centroidDist = norm(centroid - pedestrianDb(k).Centroid);
-                % IoU threshold (like discussed during the labs)
-                if bDistance < similarityTreshold && centroidDist < distanceThreshold
-                    matchScore =  (1 - bDistance) + (1 - (centroidDist));
-                    
-                    if matchScore > maxMatchScore
-                        maxMatchScore = matchScore;
-                        best_match_idx = k;
-                    end
-                end
-            end
-            
-
-            if best_match_idx ~= -1
-                currentID = pedestrianDb(best_match_idx).ID;
-                pedestrianDb(best_match_idx).Centroid = centroid;
-                pedestrianDb(best_match_idx).BoundingBox = bbox;
-                pedestrianDb(best_match_idx).Histogram = [histR, histG, histB];
-
-                pedestrianDb(best_match_idx).Trajectory = [pedestrianDb(best_match_idx).Trajectory; centroid];
-                if size(pedestrianDb(best_match_idx).Trajectory, 1) > max_trajec_len
-                    pedestrianDb(best_match_idx).Trajectory(1, :) = []; % we need to remove oldest point in order to get the trail
-                end
-            else
-                currentID = next_id;
-                pedestrianDb(end + 1) = struct("ID", next_id, "Centroid", centroid, ...
-                                             "BoundingBox", bbox, "Trajectory", centroid, ...
-                                             "Histogram", [histR, histG, histB]);
-                next_id = next_id + 1;
-            end
+            % Detect pedestrian and assign ID
+            [pedestrianDb, currentID, next_id] = pedestrianDetection(pedestrianDb, imgfr, lb, regionProps, j, next_id);
 
             if drawTrajectory
                 plot(centroid(1), centroid(2), 'g.', 'MarkerSize', 20);
@@ -138,9 +66,10 @@ for i=1:size(vid4D, 4)
             end
 
             
-            %centroids(j, trajectoryFrame) = r;
-            
             textPosition = [fliplr(upLPoint)  - [0, 10]];
+            %Display bbox
+            rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
+                'linewidth',2);
             % Display pedestrian ID
             text(textPosition(1), textPosition(2), sprintf('ID: %d', currentID), 'Color', 'yellow', ...
             'FontSize', 10, 'FontWeight', 'bold');
