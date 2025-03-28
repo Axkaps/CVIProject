@@ -1,13 +1,13 @@
-function pedestrianDb = buildHistogramDB(vid4D, bkg)
+function pedestrianDb = buildHistogramDB(vid4D)
     pedestrianDb = struct("ID", {}, "Centroid", {}, "BoundingBox", {}, "Trajectory", {}, "Histogram", {});
-    numFrames = 395;
-    background = rgb2gray(bkg);  
+    numFrames = size(vid4D, 4);
+    background = rgb2gray(vid4D(:, :, :, 1));  
     next_id = 1;
-    minArea = 200;  
-    maxArea = 2500;  
+figure, hold on;
+    minArea = 100;  
+    maxArea = 5000;  
     similarityThreshold = 0.5;  
-    distanceThreshold = 100;    
-    iouThreshold = 0.2;
+    distanceThreshold = 50;    
 
     for frameIdx = 195:numFrames
         currentFrame = vid4D(:, :, :, frameIdx);
@@ -17,7 +17,7 @@ function pedestrianDb = buildHistogramDB(vid4D, bkg)
         foregroundMask = imopen(foregroundMask, strel('disk', 2));
         foregroundMask = imclose(foregroundMask, strel('disk', 5));
         foregroundMask = bwareafilt(foregroundMask, [100, Inf]);
-        
+        imshow(foregroundMask)
         stats = regionprops(foregroundMask, 'Area', 'BoundingBox', 'Centroid');
         inds = find([stats.Area] > minArea & [stats.Area] < maxArea);
 
@@ -32,9 +32,8 @@ function pedestrianDb = buildHistogramDB(vid4D, bkg)
             for k = 1:length(pedestrianDb)
                 bDistance = bhattacharyya(pedestrianDb(k).Histogram, histFeature);
                 centroidDist = norm(centroid - pedestrianDb(k).Centroid);
-                iouScore = computeIoU(bbox, pedestrianDb(k).BoundingBox);
 
-                if bDistance < similarityThreshold && centroidDist < distanceThreshold 
+                if bDistance < similarityThreshold || centroidDist < distanceThreshold
                     isDuplicate = true;
                     break;
                 end
@@ -53,4 +52,3 @@ function pedestrianDb = buildHistogramDB(vid4D, bkg)
 
     save('pedestrianDB.mat', 'pedestrianDb');
 end
-

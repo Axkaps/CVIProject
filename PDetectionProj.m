@@ -1,4 +1,4 @@
-clc; clear all; close all; 
+clc; clear; close all; 
 
 %pathToImages = '.\Crowd_PETS\S2\L1\Time_12-34\View_001\';
 pathToImages = '../Crowd_PETS/S2/L1/Time_12-34/View_001/';
@@ -13,10 +13,11 @@ groundTruth = csvread(pathToFile);
 drawTrajectory = false;
 drawHeatmap = false;
 
-disp("Calculating database and background..")
-run('calculateBackground.m');
-buildHistogramDB(vid4D);
-fprintf(['\n', ...
+disp("Calculating database and background...");
+[vid4D, bkg] = calculateBackground(numFrames, str, pathToImages, extName);
+buildHistogramDB(vid4D, bkg);
+fprintf(['\n' ...
+    , ...
          'Usage of the program:\n', ...
          '1 - Plot groundTruth\n', ...
          '2 - Detect pedestrians\n', ...
@@ -30,7 +31,6 @@ switch sectionInput
         run('readGroundTruth.m')
     case 2 % Detect pedestrian, buth GT and ours without trajectory
         run("getGroundTruthMatrix.m")
-        
         run('detectPedestrian.m')
     case 3 % Detect pedestrian, buth GT and ours with trajectory
         drawTrajectory = true;
