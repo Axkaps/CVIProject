@@ -28,21 +28,29 @@ function [pedestrianDb, currentID, next_id] = pedestrianDetection(pedestrianDb, 
         histMaskedImage = computeColorHistogram(maskedImage);
 
         best_match_idx = -1;
+        intersectionTreshold = 0.5;
         similarityTreshold = 0.7; % Tem de ser menor que isto
         distanceThreshold = 100;
-        
+        maxIoU = 0;
         for k = 1:length(pedestrianDb)                    
 
             bDistance = bhattacharyya(pedestrianDb(k).Histogram, histMaskedImage);
             centroidDist = norm(centroid - pedestrianDb(k).Centroid);
             centroidDistNorm = exp(-centroidDist / distanceThreshold);
+            IoU = computeIoU(bbox, pedestrianDb(k).BoundingBox);
+            % First compute the intersection, then if the results are not
+            % promising use histogram and centroid to try to Re-ID
+            if IoU > intersectionTreshold && IoU > maxIoU
+                maxIoU = IoU;
+                best_match_idx = k;
+            end
 
 
             % Weighted fusion of different similarity measures
             alpha = 0.6;  % Weight for color similarity
             beta = 0.3;   % Weight for spatial consistency
 
-            if bDistance < similarityTreshold && centroidDist < distanceThreshold
+            if maxIoU < intersectionTreshold + 0.1 && bDistance < similarityTreshold && centroidDist < distanceThreshold
                 % Compute final match score
                 matchScore = alpha * (1 - bDistance) + beta * centroidDistNorm;
                 

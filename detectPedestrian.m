@@ -1,6 +1,6 @@
 thr = 50;
 minArea = 100;
-maxArea = 7000;
+maxArea = 2500;
 se = strel('rectangle', [3 10]);
 next_id = 1;
 pedestrianDb = struct("ID", {}, "Centroid", {}, "BoundingBox", {}, "Trajectory", {}, "Histogram", {}); 

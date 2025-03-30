@@ -4,10 +4,9 @@ function drawGT(i, groundTruth, str, pathToImages, extName)
     imagePath = sprintf(str,pathToImages,i,extName);
     img = imread(imagePath);
 
-    cla;
     % Display the image
     imshow(img);
-
+    
     for k = 1:size(frameData, 1)
         % Box data
         x = frameData(k, 3); % Box left
