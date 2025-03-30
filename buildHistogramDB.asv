@@ -1,0 +1,57 @@
+function pedestrianDB = buildHistogramDB(pedestrianDB, i, groundTruth, str, pathToImages, extName)
+
+    histogramThreshold = 0.2;
+    frameData = groundTruth(groundTruth(:,1) == (i + 1), :);
+    imagePath = sprintf(str,pathToImages,i,extName);
+    img = imread(imagePath);
+    
+    for k = 1:size(frameData, 1)
+        % Box data
+        ID = frameData(k, 2); % pedestrian ID
+        x = frameData(k, 3); % Box left
+        y = frameData(k, 4); % box top
+        w = frameData(k, 5); % box width
+        h = frameData(k, 6); % box height
+        
+        bbox = [x, y, w, h];
+
+        croppedImage = imcrop(img, bbox);
+
+        % Compute histogram for this croppedImage
+        histPedestrianImage = computeColorHistogram(croppedImage);
+
+        % Need to compare with the one that is in that pedestrian ID, if
+        % the difference is > than a treshold I add another one
+
+        % se ainda nao existir
+        if ID > numel(pedestrianDB) || isempty(pedestrianDB(ID).ID)
+            pedestrianDB(ID).ID = ID;
+            pedestrianDB(ID).Centroid = [];
+            pedestrianDB(ID).BoundingBox = bbox;
+            pedestrianDB(ID).Trajectory = [];
+            pedestrianDB(ID).Histogram = {histPedestrianImage};
+            continue;
+        end
+        
+        % Compare with existing histograms for this pedestrian
+        addNewHistogram = true;
+        if ~isempty(pedestrianDB(ID).Histogram)
+            % Compare with all existing histograms for this pedestrian
+            for hIdx = 1:numel(pedestrianDB(ID).Histogram)
+                existingHist = pedestrianDB(ID).Histogram{hIdx};
+                distance = bhattacharyya(existingHist, histPedestrianImage);
+                
+                if distance <= histogramThreshold
+                    addNewHistogram = false;
+                    break;
+                end
+            end
+        end
+        
+        % Add new histogram if significantly different
+        if addNewHistogram
+            pedestrianDB(ID).Histogram{end+1} = histPedestrianImage;
+        end
+        
+    end
+end

@@ -1,9 +1,8 @@
 thr = 50;
-minArea = 100;
+minArea = 250;
 maxArea = 2500;
-se = strel('rectangle', [3 10]);
-next_id = 1;
-pedestrianDb = struct("ID", {}, "Centroid", {}, "BoundingBox", {}, "Trajectory", {}, "Histogram", {}); 
+se = strel('disk', 5);
+next_id = 20;
 height = 576;
 width = 768;
 sigma = 20;
@@ -11,19 +10,17 @@ heatmap = zeros(height, width);
 dynamicHeatmap = zeros(height, width);
 heatmapDecay = 0.99;
 associationMatrixCellArray = {}; % Empty cell array
-
-
-% Load the db I have
-load('pedestrianDB.mat', 'pedestrianDb');
+assigned = [];
 
 for i=1:size(vid4D, 4)
-
+    assigned = [];
     imgfr = vid4D(:,:,:,i);
     imgdif = (abs(double(bkg(:,:,1))-double(imgfr(:,:,1))) > thr) | ...
         (abs(double(bkg(:,:,2))-double(imgfr(:,:,2))) > thr) | ...
         (abs(double(bkg(:,:,3))-double(imgfr(:,:,3))) > thr);
 
-    bw = imgdif;
+    bw = imgdif; 
+
 
     % Use lb matrix to be my detector matrix
     [lb num] = bwlabel(bw); 
@@ -51,13 +48,13 @@ for i=1:size(vid4D, 4)
 
 
             % Detect pedestrian and assign ID
-            [pedestrianDb, currentID, next_id] = pedestrianDetection(pedestrianDb, imgfr, lb, regionProps, j, next_id);
-
+            [pedestrianDB, currentID, next_id] = pedestrianDetection(pedestrianDB, imgfr, regionProps, j, next_id, assigned);
+            assigned(end + 1) = currentID;
             if drawTrajectory
                 plot(centroid(1), centroid(2), 'g.', 'MarkerSize', 20);
 
                 if best_match_idx ~= -1
-                    traj = pedestrianDb(best_match_idx).Trajectory;
+                    traj = pedestrianDB(best_match_idx).Trajectory;
                     if size(traj, 1) > 1
                         plot(traj(:, 1), traj(:, 2), 'g-', 'LineWidth', 2); 
     
@@ -109,12 +106,13 @@ for i=1:size(vid4D, 4)
     end
     drawnow;
     hold off;
+    pause(1);
 end
 
 % EM algorithm
 X = [];
-for i = 1:length(pedestrianDb)
-    X = [X; pedestrianDb(i).Trajectory];
+for i = 1:length(pedestrianDB)
+    X = [X; pedestrianDB(i).Trajectory];
 end
 
 K = 1;
