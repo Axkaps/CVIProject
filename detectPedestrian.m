@@ -13,14 +13,18 @@ associationMatrixCellArray = {}; % Empty cell array
 
 assigned = [];
 
-
 successPercentage = 0;
 successPercentageArray = [];
 
+totalFN = 0;
+totalFP = 0;
+totalGT = 0;
+totalDT = 0; 
 
 % Load the db I have
 load('pedestrianDB.mat', 'pedestrianDb');
 
+% Create successPlot of IoU
 if evaluatePerformance
     thresholds = 0:0.1:1;
     successRates = zeros(size(thresholds));
@@ -133,8 +137,32 @@ for i=1:size(vid4D, 4)
 
     drawnow;
     hold off;
-    pause(1);
+    %pause(1);
 end
+
+%Calculate FN and FP percentages
+%Count the total of lines of zeros dividing by total columns of associationMatrixCellArray
+for i = 1:length(associationMatrixCellArray)
+    if ~isempty(associationMatrixCellArray{i}) 
+        C = associationMatrixCellArray{i}; 
+
+        currentFN = sum(all(C == 0, 2));
+        totalFN = totalFN + currentFN;
+
+        currentFP = sum(all(C == 0, 1));
+        totalFP = totalFP + currentFP;
+
+        totalGT = totalGT + size(C, 1); 
+        totalDT = totalDT + size(C, 2); 
+    end
+end
+
+percentageFN = (totalFN / totalGT) * 100;
+percentageFP = (totalFP / totalDT) * 100;
+
+
+fprintf('False Negative Percentage: %.2f%%\n', percentageFN);
+fprintf('False Positive Percentage: %.2f%%\n', percentageFP);
 
 % EM algorithm
 X = [];
