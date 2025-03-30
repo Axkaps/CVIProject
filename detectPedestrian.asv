@@ -1,8 +1,12 @@
 thr = 50;
 minArea = 200;
 maxArea = 2700;
+minArea = 100;
+maxArea = 2500;
 se = strel('rectangle', [3 10]);
 next_id = 20;
+next_id = 1;
+pedestrianDb = struct("ID", {}, "Centroid", {}, "BoundingBox", {}, "Trajectory", {}, "Histogram", {}); 
 height = 576;
 width = 768;
 sigma = 20;
@@ -11,6 +15,23 @@ dynamicHeatmap = zeros(height, width);
 heatmapDecay = 0.99;
 associationMatrixCellArray = {}; % Empty cell array
 
+successPercentage = [];
+
+
+% Load the db I have
+load('pedestrianDB.mat', 'pedestrianDb');
+
+if evaluatePerformance
+    thresholds = 0:0.1:1;
+    successRates = zeros(size(thresholds));
+
+    subplot(2, 2, 1);
+    successPlot = plot(thresholds, successRates, '-o', 'LineWidth', 2);
+    xlabel('IoU Threshold');
+    ylabel('Success Rate');
+    title('Success Plot');
+    grid on;
+end
 
 for i=1:size(vid4D, 4)
 
@@ -36,7 +57,7 @@ for i=1:size(vid4D, 4)
 
     % Compute the association matrix
     if regnum
-        associationMatrixCellArray{i} = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
+        [successPercentage, associationMatrixCellArray{i}] = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
         
 
         for j=inds
@@ -47,13 +68,13 @@ for i=1:size(vid4D, 4)
 
 
             % Detect pedestrian and assign ID
-            [pedestrianDB, currentID, next_id] = pedestrianDetection(pedestrianDB, imgfr, lb, regionProps, j, next_id);
+            [pedestrianDb, currentID, next_id] = pedestrianDetection(pedestrianDb, imgfr, lb, regionProps, j, next_id);
 
             if drawTrajectory
                 plot(centroid(1), centroid(2), 'g.', 'MarkerSize', 20);
 
                 if best_match_idx ~= -1
-                    traj = pedestrianDB(best_match_idx).Trajectory;
+                    traj = pedestrianDb(best_match_idx).Trajectory;
                     if size(traj, 1) > 1
                         plot(traj(:, 1), traj(:, 2), 'g-', 'LineWidth', 2); 
     
@@ -102,7 +123,13 @@ for i=1:size(vid4D, 4)
         colormap("jet"); 
         colorbar; 
         title('Dynamic Heatmap');
+    elseif evaluatePerformance
+        for k = 1:length(thresholds)
+            successRates(k) = sum(successPercentage >= thresholds(k)) / i;
+        end
+        set(successPlot, 'YData', successRates);
     end
+
     drawnow;
     hold off;
     pause(1);
@@ -110,8 +137,8 @@ end
 
 % EM algorithm
 X = [];
-for i = 1:length(pedestrianDB)
-    X = [X; pedestrianDB(i).Trajectory];
+for i = 1:length(pedestrianDb)
+    X = [X; pedestrianDb(i).Trajectory];
 end
 
 K = 1;

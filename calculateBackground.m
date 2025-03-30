@@ -9,6 +9,10 @@ function [vid4D, bkg] = calculateBackground(numFrames, str, pathToImages, extNam
         vid4D(:,:,:,i) = img;
         %imshow(img); drawnow
         i = i+1;
+
+        if mod(k, 100) == 0
+            disp("...");
+        end
     end
     
     % Get the background (Should try both median and low pass i guess)

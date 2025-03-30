@@ -1,6 +1,7 @@
-function C = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum)
+function [successPercentage, C] = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum)
     
     DetectorMatrix = zeros(height, width);
+    successPercentage = 0;
 
     for j=1:regnum
         
@@ -43,8 +44,10 @@ function C = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, heig
             % Store Intersection over Union (IoU)
             if union > 0
                 C(l, m) = (intersection / union) > 0.5;
+                successPercentage = successPercentage + (intersection / union);
             end
         end
     end
+    successPercentage = successPercentage / (num_gt);
 
 end

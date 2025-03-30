@@ -10,7 +10,42 @@ heatmap = zeros(height, width);
 dynamicHeatmap = zeros(height, width);
 heatmapDecay = 0.99;
 associationMatrixCellArray = {}; % Empty cell array
+
 assigned = [];
+
+
+successPercentage = 0;
+successPercentageArray = [];
+
+
+% Load the db I have
+load('pedestrianDB.mat', 'pedestrianDb');
+
+if evaluatePerformance
+    thresholds = 0:0.1:1;
+    successRates = zeros(size(thresholds));
+
+    subplot(2, 2, 2);
+    successPlot = plot(thresholds, successRates, '-o', 'LineWidth', 2);
+    xlabel('IoU Threshold');
+    ylabel('Success Rate');
+    title('Success Plot');
+    grid on;
+end
+
+for i=1:size(vid4D, 4)
+
+if evaluatePerformance
+    thresholds = 0:0.1:1;
+    successRates = zeros(size(thresholds));
+
+    subplot(2, 2, 2);
+    successPlot = plot(thresholds, successRates, '-o', 'LineWidth', 2);
+    xlabel('IoU Threshold');
+    ylabel('Success Rate');
+    title('Success Plot');
+    grid on;
+end
 
 for i=1:size(vid4D, 4)
     assigned = [];
@@ -29,7 +64,7 @@ for i=1:size(vid4D, 4)
     regnum = length(inds);
     
 
-    if drawHeatmap
+    if drawHeatmap || evaluatePerformance
         subplot(2, 2, 1);
         title('Pedestrian Detection');
     end
@@ -37,8 +72,8 @@ for i=1:size(vid4D, 4)
 
     % Compute the association matrix
     if regnum
-        associationMatrixCellArray{i} = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
-        
+        [successPercentage, associationMatrixCellArray{i}] = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
+        successPercentageArray = [successPercentageArray, successPercentage];
 
         for j=inds
             currentID = [];
@@ -51,8 +86,8 @@ for i=1:size(vid4D, 4)
             [pedestrianDB, currentID, next_id] = pedestrianDetection(pedestrianDB, imgfr, regionProps, j, next_id, assigned);
             assigned(end + 1) = currentID;
             if drawTrajectory
-                plot(centroid(1), centroid(2), 'g.', 'MarkerSize', 20);
-
+                plot(regionProps(j).Centroid(1), regionProps(j).Centroid(2), 'g.', 'MarkerSize', 20);
+                %TODO: Fix error when running point 3
                 if best_match_idx ~= -1
                     traj = pedestrianDB(best_match_idx).Trajectory;
                     if size(traj, 1) > 1
@@ -73,7 +108,7 @@ for i=1:size(vid4D, 4)
 
             %Draw heatmaps
             if drawHeatmap
-                centroidHeatmap = round(centroid);
+                centroidHeatmap = round(regionProps(j).Centroid);
                 xH = min(max(centroidHeatmap(1), 1), width);
                 yH = min(max(centroidHeatmap(2), 1), height);
     
@@ -103,7 +138,13 @@ for i=1:size(vid4D, 4)
         colormap("jet"); 
         colorbar; 
         title('Dynamic Heatmap');
+    elseif evaluatePerformance
+        for k = 1:length(thresholds)
+            successRates(k) = sum(successPercentageArray >= thresholds(k)) / length(successPercentageArray);
+        end
+        set(successPlot, 'YData', successRates);
     end
+
     drawnow;
     hold off;
     pause(1);
