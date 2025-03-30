@@ -34,20 +34,6 @@ if evaluatePerformance
 end
 
 for i=1:size(vid4D, 4)
-
-if evaluatePerformance
-    thresholds = 0:0.1:1;
-    successRates = zeros(size(thresholds));
-
-    subplot(2, 2, 2);
-    successPlot = plot(thresholds, successRates, '-o', 'LineWidth', 2);
-    xlabel('IoU Threshold');
-    ylabel('Success Rate');
-    title('Success Plot');
-    grid on;
-end
-
-for i=1:size(vid4D, 4)
     assigned = [];
     imgfr = vid4D(:,:,:,i);
     imgdif = (abs(double(bkg(:,:,1))-double(imgfr(:,:,1))) > thr) | ...
