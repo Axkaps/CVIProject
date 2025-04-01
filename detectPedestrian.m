@@ -1,8 +1,8 @@
 thr = 50;
-minArea = 250;
-maxArea = 2500;
+minArea = 200;
+maxArea = 4500;
 se = strel('disk', 5);
-next_id = 20;
+next_id = 21;
 height = 576;
 width = 768;
 sigma = 20;
@@ -20,9 +20,6 @@ totalFN = 0;
 totalFP = 0;
 totalGT = 0;
 totalDT = 0; 
-
-% Load the db I have
-load('pedestrianDB.mat', 'pedestrianDb');
 
 % Create successPlot of IoU
 if evaluatePerformance
@@ -60,60 +57,68 @@ for i=1:size(vid4D, 4)
     end
     imshow(imgfr); hold on;
 
-    % Compute the association matrix
+    % Inside the for loop where regionProps are processed
     if regnum
         [successPercentage, associationMatrixCellArray{i}] = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
         successPercentageArray = [successPercentageArray, successPercentage];
-
-        for j=inds
+        
+        for filtered_idx=1:length(inds)
+            
+            j = inds(filtered_idx);
             currentID = [];
             [lin col]= find(lb == j);
             upLPoint = min([lin col]);
             dWindow  = max([lin col]) - upLPoint + 1;      
-
-
-            % Detect pedestrian and assign ID
-            [pedestrianDB, currentID, next_id] = pedestrianDetection(pedestrianDB, imgfr, regionProps, j, next_id, assigned);
-            assigned(end + 1) = currentID;
-            if drawTrajectory
-                plot(regionProps(j).Centroid(1), regionProps(j).Centroid(2), 'g.', 'MarkerSize', 20);
-                %TODO: Fix error when running point 3
-                if best_match_idx ~= -1
-                    traj = pedestrianDB(best_match_idx).Trajectory;
-                    if size(traj, 1) > 1
-                        plot(traj(:, 1), traj(:, 2), 'g-', 'LineWidth', 2); 
     
+            % Get the current association matrix for this frame
+            currentAssociationMatrix = [];
+            if ~isempty(associationMatrixCellArray{i})
+                currentAssociationMatrix = associationMatrixCellArray{i};
+            end
+    
+            % Detect pedestrian and assign ID, passing the association matrix
+            [pedestrianDB, currentID, next_id] = pedestrianDetection(pedestrianDB, imgfr, regionProps, j, next_id, assigned, currentAssociationMatrix, filtered_idx);
+            
+            % Only process further if not a merge situation (currentID != -1)
+            if currentID ~= -1
+                assigned(end + 1) = currentID;
+                
+                if drawTrajectory
+                    plot(regionProps(j).Centroid(1), regionProps(j).Centroid(2), 'g.', 'MarkerSize', 20);
+                    %TODO: Fix error when running point 3
+                    if best_match_idx ~= -1
+                        traj = pedestrianDB(best_match_idx).Trajectory;
+                        if size(traj, 1) > 1
+                            plot(traj(:, 1), traj(:, 2), 'g-', 'LineWidth', 2); 
+                        end
                     end
                 end
-            end
-
-            
-            textPosition = [fliplr(upLPoint)  - [0, 10]];
-            %Display bbox
-            rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
-                'linewidth',2);
-            % Display pedestrian ID
-            text(textPosition(1), textPosition(2), sprintf('ID: %d', currentID), 'Color', 'yellow', ...
-            'FontSize', 10, 'FontWeight', 'bold');
-
-            %Draw heatmaps
-            if drawHeatmap
-                centroidHeatmap = round(regionProps(j).Centroid);
-                xH = min(max(centroidHeatmap(1), 1), width);
-                yH = min(max(centroidHeatmap(2), 1), height);
     
-                [XH, YH] = meshgrid(1:width, 1:height);
-                gaussian = exp(-((XH - xH).^2 + (YH - yH).^2) / (2 * sigma^2));
+                textPosition = [fliplr(upLPoint)  - [0, 10]];
+                %Display bbox
+                rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
+                    'linewidth',2);
+                % Display pedestrian ID
+                text(textPosition(1), textPosition(2), sprintf('ID: %d', currentID), 'Color', 'yellow', ...
+                'FontSize', 10, 'FontWeight', 'bold');
+    
+                %Draw heatmaps
+                if drawHeatmap
+                    centroidHeatmap = round(regionProps(j).Centroid);
+                    xH = min(max(centroidHeatmap(1), 1), width);
+                    yH = min(max(centroidHeatmap(2), 1), height);
         
-                heatmap = heatmap + gaussian;
-    
-                dynamicHeatmap = dynamicHeatmap + gaussian;
-                %Apply decay factor for dynamic heatmap
-                dynamicHeatmap = dynamicHeatmap * heatmapDecay;
+                    [XH, YH] = meshgrid(1:width, 1:height);
+                    gaussian = exp(-((XH - xH).^2 + (YH - yH).^2) / (2 * sigma^2));
+            
+                    heatmap = heatmap + gaussian;
+        
+                    dynamicHeatmap = dynamicHeatmap + gaussian;
+                    %Apply decay factor for dynamic heatmap
+                    dynamicHeatmap = dynamicHeatmap * heatmapDecay;
+                end
             end
-
         end
-  
     end
 
     if drawHeatmap
@@ -137,7 +142,7 @@ for i=1:size(vid4D, 4)
 
     drawnow;
     hold off;
-    %pause(1);
+    pause(1);
 end
 
 %Calculate FN and FP percentages

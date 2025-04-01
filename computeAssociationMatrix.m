@@ -24,13 +24,13 @@ function [successPercentage, C] = computeAssociationMatrix(groundTruthMatrix, re
         
 
     end
-    
     [L_gt, num_gt] = bwlabel(groundTruthMatrix(:,:, i));    % Label GT objects
-    [L_det, num_det] = bwlabel(DetectorMatrix);            % Label detected objects
-    C = zeros(num_gt, num_det); % Initialize association matrix
+    [L_det, num_det] = bwlabel(DetectorMatrix);  
+    
+    C = zeros(num_gt, regnum); % Initialize association matrix
 
     for l = 1:num_gt
-        for m = 1:num_det
+        for m = 1:regnum
             % Find pixels belonging to GT object i
             gt_mask = (L_gt == l);
     
