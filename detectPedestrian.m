@@ -138,36 +138,68 @@ for i=1:size(vid4D, 4)
             successRates(k) = sum(successPercentageArray >= thresholds(k)) / length(successPercentageArray);
         end
         set(successPlot, 'YData', successRates);
+
+        if ~isempty(associationMatrixCellArray{i})
+            currentFN = sum(all(associationMatrixCellArray{i} == 0, 2));
+            totalFN = totalFN + currentFN;
+    
+            currentFP = sum(all(associationMatrixCellArray{i} == 0, 1));
+            totalFP = totalFP + currentFP;
+    
+            totalGT = totalGT + size(associationMatrixCellArray{i}, 1); 
+            totalDT = totalDT + size(associationMatrixCellArray{i}, 2); 
+        end
+
+        subplot(2, 2, 3);
+        bar(1, totalFN, 'r'); 
+        ylabel('Ground Truth detections');
+        xlabel('Total False Negatives (FN)');
+        title('Total FN in Ground Truth detections');
+        xticks(1);
+        xticklabels({sprintf('Total FN: %d', totalFN)});
+        ylim([0, max(totalFN, 1.2 * totalGT)]); 
+        grid on;
+        
+        subplot(2, 2, 4);
+        bar(1, totalFP, 'b');
+        ylabel('Algorithm detections');
+        xlabel('Total False Positives (FP)');
+        title('Total FP in Algorithm detections');
+        xticks(1);
+        xticklabels({sprintf('Total FP: %d', totalFP)});
+        ylim([0, max(totalFP, 1.2 * totalDT)]); 
+        grid on;
     end
 
     drawnow;
     hold off;
-    pause(1);
+    %pause(1);
 end
 
 %Calculate FN and FP percentages
 %Count the total of lines of zeros dividing by total columns of associationMatrixCellArray
-for i = 1:length(associationMatrixCellArray)
-    if ~isempty(associationMatrixCellArray{i}) 
-        C = associationMatrixCellArray{i}; 
+%for i = 1:length(associationMatrixCellArray)
+%    if ~isempty(associationMatrixCellArray{i}) 
+        %C = associationMatrixCellArray{i}; 
 
-        currentFN = sum(all(C == 0, 2));
-        totalFN = totalFN + currentFN;
+       % currentFN = sum(all(C == 0, 2));
+      %  totalFN = totalFN + currentFN;
 
-        currentFP = sum(all(C == 0, 1));
-        totalFP = totalFP + currentFP;
+     %   currentFP = sum(all(C == 0, 1));
+    %    totalFP = totalFP + currentFP;
 
-        totalGT = totalGT + size(C, 1); 
-        totalDT = totalDT + size(C, 2); 
-    end
-end
+   %     totalGT = totalGT + size(C, 1); 
+  %      totalDT = totalDT + size(C, 2); 
+ %   end
+%end
 
-percentageFN = (totalFN / totalGT) * 100;
-percentageFP = (totalFP / totalDT) * 100;
+%percentageFN = (totalFN / totalGT) * 100;
+%percentageFP = (totalFP / totalDT) * 100;
 
 
 fprintf('False Negative Percentage: %.2f%%\n', percentageFN);
 fprintf('False Positive Percentage: %.2f%%\n', percentageFP);
+
 
 % EM algorithm
 X = [];
