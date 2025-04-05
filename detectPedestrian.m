@@ -81,7 +81,9 @@ for i=1:size(vid4D, 4)
             
             % Only process further if not a merge situation (currentID != -1)
             if currentID ~= -1
+                
                 assigned(end + 1) = currentID;
+                best_match_idx = currentID; 
                 
                 if drawTrajectory
                     plot(regionProps(j).Centroid(1), regionProps(j).Centroid(2), 'g.', 'MarkerSize', 20);
@@ -197,31 +199,168 @@ end
 %percentageFP = (totalFP / totalDT) * 100;
 
 
-fprintf('False Negative Percentage: %.2f%%\n', percentageFN);
-fprintf('False Positive Percentage: %.2f%%\n', percentageFP);
+% fprintf('False Negative Percentage: %.2f%%\n', percentageFN);
+% fprintf('False Positive Percentage: %.2f%%\n', percentageFP);
 
 
-% EM algorithm
-X = [];
+% % Get delta positions from pedestrian trajectories
+% deltaTraj = [];
+% for i = 1:length(pedestrianDB)
+%     traj = pedestrianDB(i).Trajectory;
+%     if size(traj, 1) > 1
+%         delta = traj(end, :) - traj(1, :);
+%         deltaTraj = [deltaTraj; delta];
+%     end
+% end
+% 
+% % Number of Gaussian components
+% K = 2; % Changeable
+% 
+% % Initialize parameters
+% [N, D] = size(deltaTraj);
+% rng(1); % for reproducibility
+% mu = deltaTraj(randperm(N, K), :); % Random means
+% Sigma = zeros(D, D, K); % Covariance matrices
+% for k = 1:K
+%     Sigma(:, :, k) = eye(D); % Identity covariance matrix
+% end
+% pi_k = ones(1, K) / K; % Uniform mixing coefficients
+% log_likelihood = [];
+% 
+% maxIter = 100;
+% tol = 1e-6;
+% 
+% for iter = 1:maxIter
+%     % E-step
+%     gamma = zeros(N, K); % responsibilities
+%     for k = 1:K
+%         for n = 1:N
+%             diffVec = deltaTraj(n, :) - mu(k, :);
+%             SigmaReg = Sigma(:, :, k) + 1e-6 * eye(D);
+%             gamma(n, k) = pi_k(k) * exp(-0.5 * diffVec * inv(SigmaReg) * diffVec') / sqrt(det(SigmaReg));
+%         end
+%     end
+%     gamma = gamma ./ sum(gamma, 2); % normalize responsibilities
+% 
+%     % M-step
+%     Nk = sum(gamma, 1);
+%     for k = 1:K
+%         mu(k, :) = sum(gamma(:, k) .* deltaTraj) / Nk(k);
+%         X_centered = deltaTraj - mu(k, :);
+%         SigmaReg = (X_centered' * (X_centered .* gamma(:, k))) / Nk(k) + 1e-6 * eye(D);
+%         Sigma(:, :, k) = SigmaReg;
+%     end
+%     pi_k = Nk / N;
+% 
+%     % Check for convergence (log likelihood)
+%     ll = 0;
+%     for n = 1:N
+%         for k = 1:K
+%             diffVec = deltaTraj(n, :) - mu(k, :);
+%             SigmaReg = Sigma(:, :, k) + 1e-6 * eye(D);
+%             ll = ll + log(pi_k(k) * exp(-0.5 * diffVec * inv(SigmaReg) * diffVec') / sqrt(det(SigmaReg)));
+%         end
+%     end
+%     log_likelihood(end + 1) = ll;
+%     if iter > 1 && abs(log_likelihood(end) - log_likelihood(end - 1)) < tol
+%         break;
+%     end
+% end
+% 
+% % Assign clusters
+% [~, clusterLabels] = max(gamma, [], 2);
+% 
+% % Plot results
+% figure; hold on;
+% colors = lines(K);
+% for k = 1:K
+%     scatter(deltaTraj(clusterLabels == k, 1), deltaTraj(clusterLabels == k, 2), 10, colors(k, :), 'filled');
+% end
+% title('GMM Clustering on Pedestrian Delta Trajectories');
+% xlabel('\DeltaX'); ylabel('\DeltaY');
+% legend(arrayfun(@(k) sprintf('Cluster %d', k), 1:K, 'UniformOutput', false));
+
+% Build displacement data
+displacementTraj = [];
 for i = 1:length(pedestrianDB)
-    X = [X; pedestrianDB(i).Trajectory];
-end
-
-K = 1;
-
-if ~isempty(X)
-    % fitgmdist performs EM using k-means for parameter init; regularizationValue
-    % pervents issues (outliers, etc)
-    gmmModel = fitgmdist(X, K, 'RegularizationValue', 0.1); 
-    clusterLabels = cluster(gmmModel, X);
-    figure; hold on;
-    colors = ['r', 'g', 'b', 'y', 'm'];
-    for k = 1:K
-        scatter(X(clusterLabels == k, 1), X(clusterLabels == k, 2), 10, colors(k), 'filled');
+    traj = pedestrianDB(i).Trajectory;
+    if size(traj, 1) == 10
+        dispVecs = diff(traj);        % 9x2 displacements
+        dispFlat = dispVecs(:)';      % 1x18 vector
+        displacementTraj = [displacementTraj; dispFlat];
     end
-    title('Pedestrian Trajectory Clusters');
-    xlabel('X Position'); ylabel('Y Position');
-    legend('Cluster 1', 'Cluster 2', 'Cluster 3');
 end
+
+% Normalize
+displacementTraj = zscore(displacementTraj);
+[N, D] = size(displacementTraj);
+
+% Set K = 2
+K = 2;
+
+% Initialize parameters
+rng(1);
+mu = displacementTraj(randperm(N, K), :);
+Sigma = repmat(eye(D), [1, 1, K]);
+pi_k = ones(1, K) / K;
+log_likelihood = [];
+
+maxIter = 100;
+tol = 1e-6;
+
+for iter = 1:maxIter
+    % E-step
+    gamma = zeros(N, K);
+    for k = 1:K
+        for n = 1:N
+            diffVec = displacementTraj(n, :) - mu(k, :);
+            SigmaReg = Sigma(:, :, k) + 1e-6 * eye(D);
+            gamma(n, k) = pi_k(k) * exp(-0.5 * diffVec * (SigmaReg \ diffVec')) / sqrt(det(SigmaReg));
+        end
+    end
+    gamma = gamma ./ sum(gamma, 2);
+
+    % M-step
+    Nk = sum(gamma, 1);
+    for k = 1:K
+        mu(k, :) = sum(gamma(:, k) .* displacementTraj) / Nk(k);
+        X_centered = displacementTraj - mu(k, :);
+        Sigma_k = zeros(D);
+        for n = 1:N
+            Sigma_k = Sigma_k + gamma(n, k) * (X_centered(n, :)' * X_centered(n, :));
+        end
+        Sigma(:, :, k) = Sigma_k / Nk(k) + 1e-6 * eye(D);
+    end
+    pi_k = Nk / N;
+
+    % Log-likelihood
+    ll = 0;
+    for n = 1:N
+        temp = 0;
+        for k = 1:K
+            diffVec = displacementTraj(n, :) - mu(k, :);
+            SigmaReg = Sigma(:, :, k) + 1e-6 * eye(D);
+            temp = temp + pi_k(k) * exp(-0.5 * diffVec * (SigmaReg \ diffVec')) / sqrt(det(SigmaReg));
+        end
+        ll = ll + log(temp);
+    end
+    log_likelihood(end + 1) = ll;
+    if iter > 1 && abs(log_likelihood(end) - log_likelihood(end - 1)) < tol
+        break;
+    end
+end
+
+% Assign clusters
+[~, clusterLabels] = max(gamma, [], 2);
+
+% Plot results
+figure; hold on;
+colors = lines(K); % Generate K distinct colors
+for k = 1:K
+    scatter(displacementTraj(clusterLabels == k, 1), displacementTraj(clusterLabels == k, 2), 10, colors(k, :), 'filled');
+end
+title('GMM Clustering on Pedestrian Trajectories');
+xlabel('\DeltaX'); ylabel('\DeltaY');
+legend(arrayfun(@(k) sprintf('Cluster %d', k), 1:K, 'UniformOutput', false));
 
 
