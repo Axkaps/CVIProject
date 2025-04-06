@@ -19,7 +19,8 @@ skeleton = struct(...
     'Centroid', [], ...
     'BoundingBox', [], ...
     'Trajectory', [], ...
-    'Histogram', {{}} ... % There might be more than one guy
+    'Histogram', {{}}, ... % There might be more than one guy
+    'LastSeen', 0 ...
 );
 
 % Pre-allocate an array of 19 structs
@@ -37,26 +38,31 @@ fprintf(['\n' ...
          '5 - Draw HeatMaps\n' ...
          '7 - Provide an evaluation performance\n']);
 
-sectionInput = input("What project section do you want to run? ");
 
-switch sectionInput
-    case 1 % Only plot GT
-        run('readGroundTruth.m')
-    case 2 % Detect pedestrian, buth GT and ours without trajectory
-        run("getGroundTruthMatrix.m")
-        run('detectPedestrian.m')
-    case 3 % Detect pedestrian, buth GT and ours with trajectory
-        drawTrajectory = true;
-        run("getGroundTruthMatrix.m")
-        run('detectPedestrian.m')
-    case 5 % Draw Heatmaps
-        drawHeatmap = true;
-        run("getGroundTruthMatrix.m")
-        run('detectPedestrian.m')
-    case 7 %Evaluate performance
-        evaluatePerformance = true;
-        run("getGroundTruthMatrix.m")
-        run('detectPedestrian.m')
-    otherwise
-        disp('Invalid section')
+
+while true
+    sectionInput = input('What project section do you want to run? (1, 2, 3, 5, 7, or 0 to exit): ');
+
+    switch sectionInput
+        case 1 % Only plot GT
+            run('readGroundTruth.m')
+        case 2 % Detect pedestrian, both GT and ours without trajectory
+            run('detectPedestrian.m')
+        case 3 % Detect pedestrian, both GT and ours with trajectory
+            drawTrajectory = true;
+            run('detectPedestrian.m')
+        case 5 % Draw Heatmaps
+            drawHeatmap = true;
+            run('detectPedestrian.m')
+        case 7 % Evaluate performance
+            evaluatePerformance = true;
+            run('detectPedestrian.m')
+        case 8
+            run("DLYOLO.m")
+        case 0 % Exit
+            disp('Exiting program. Goodbye!')
+            break
+        otherwise
+            disp('Invalid section. Please try again.')
+    end
 end

@@ -33,40 +33,54 @@ function pedestrianDB = buildHistogramDB(pedestrianDB, i, groundTruth, str, path
             continue;
         end
         
-        % If we have less than 2 histograms, just check if it's different enough
-        if numel(pedestrianDB(ID).Histogram) < 2
-            % Compare with existing histogram if any
-            if ~isempty(pedestrianDB(ID).Histogram)
-                existingHist = pedestrianDB(ID).Histogram{1};
+        % If we have less than 4 histograms, just check if it's different enough from existing ones
+        if numel(pedestrianDB(ID).Histogram) < 4
+            % Compare with existing histograms
+            addHistogram = true;
+            
+            for h = 1:numel(pedestrianDB(ID).Histogram)
+                existingHist = pedestrianDB(ID).Histogram{h};
                 distance = histogramDistance(existingHist, histPedestrianImage);
                 
-                if distance > histogramThreshold
-                    pedestrianDB(ID).Histogram{end+1} = histPedestrianImage;
+                if distance <= histogramThreshold
+                    addHistogram = false;
+                    break;
                 end
-            else
-                pedestrianDB(ID).Histogram{1} = histPedestrianImage;
+            end
+            
+            if addHistogram
+                pedestrianDB(ID).Histogram{end+1} = histPedestrianImage;
             end
         else
-            % We already have 2 histograms, decide if we should replace one
-            hist1 = pedestrianDB(ID).Histogram{1};
-            hist2 = pedestrianDB(ID).Histogram{2};
+            % We already have 4 or more histograms
+            % Find the closest histogram to the new one
+            distances = zeros(1, numel(pedestrianDB(ID).Histogram));
             
-            dist1 = histogramDistance(hist1, histPedestrianImage);
-            dist2 = histogramDistance(hist2, histPedestrianImage);
-            dist_between = histogramDistance(hist1, hist2);
+            for h = 1:numel(pedestrianDB(ID).Histogram)
+                existingHist = pedestrianDB(ID).Histogram{h};
+                distances(h) = histogramDistance(existingHist, histPedestrianImage);
+            end
             
-            % Only consider replacing if this histogram is significantly different
-            if dist1 > histogramThreshold || dist2 > histogramThreshold
-                % If distance between existing histograms is less than the distance
-                % to the new one, replace the closest histogram with new one
-                if dist_between < max(dist1, dist2)
-                    if dist1 < dist2
-                        % Replace hist1 (closest to new histogram)
-                        pedestrianDB(ID).Histogram{1} = histPedestrianImage;
-                    else
-                        % Replace hist2 (closest to new histogram)
-                        pedestrianDB(ID).Histogram{2} = histPedestrianImage;
+            [minDist, minIdx] = min(distances);
+            
+            % If the new histogram is significantly different from all existing ones
+            if minDist > histogramThreshold
+                % Find the two most similar histograms in our collection
+                pairwiseDistances = zeros(numel(pedestrianDB(ID).Histogram));
+                for i1 = 1:numel(pedestrianDB(ID).Histogram)
+                    for i2 = (i1+1):numel(pedestrianDB(ID).Histogram)
+                        pairwiseDistances(i1, i2) = histogramDistance(pedestrianDB(ID).Histogram{i1}, pedestrianDB(ID).Histogram{i2});
                     end
+                end
+                
+                [~, minIndices] = min(pairwiseDistances(:));
+                [row, col] = ind2sub(size(pairwiseDistances), minIndices);
+                
+                % Replace the one that's most similar to others
+                if numel(pedestrianDB(ID).Histogram) >= 5
+                    pedestrianDB(ID).Histogram{row} = histPedestrianImage;
+                else
+                    pedestrianDB(ID).Histogram{end+1} = histPedestrianImage;
                 end
             end
         end
@@ -82,7 +96,3 @@ function pedestrianDB = buildHistogramDB(pedestrianDB, i, groundTruth, str, path
     
 
 end
-
-
-
-    

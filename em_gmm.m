@@ -1,10 +1,13 @@
-function [mu, Sigma, pi_k, gamma, log_likelihoods] = em_gmm(X, K, max_iters)
+function [mu, Sigma, pi_k, gamma, log_likelihoods] = em_gmm(X, K, max_iters, mu_init, idx)
     [N, D] = size(X);
     rng(1);
     
     % Initialize
-    mu = X(randperm(N, K), :);               % KxD
-    Sigma = repmat(cov(X), [1, 1, K]);       % DxDxK
+    mu = mu_init;
+    Sigma = zeros(D, D, K);       % DxDxK
+    for k = 1:K
+        Sigma(:, :, k) = cov(X(idx == k, :)) + 1e-3 * eye(D); % Use k-means clusters
+    end
     pi_k = ones(1, K) / K;
     gamma = zeros(N, K);
     log_likelihoods = zeros(max_iters, 1);

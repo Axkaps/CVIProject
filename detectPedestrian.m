@@ -59,8 +59,10 @@ for i=1:size(vid4D, 4)
 
     % Inside the for loop where regionProps are processed
     if regnum
-        [successPercentage, associationMatrixCellArray{i}] = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
-        successPercentageArray = [successPercentageArray, successPercentage];
+        %[successPercentage, associationMatrixCellArray{i}] = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
+        associationMatrixCellArray{i} = computeAssociationMatrix(groundTruth, regionProps, inds, i, 0.15);
+
+        % successPercentageArray = [successPercentageArray, successPercentage];
         
         for filtered_idx=1:length(inds)
             
@@ -119,6 +121,14 @@ for i=1:size(vid4D, 4)
                     %Apply decay factor for dynamic heatmap
                     dynamicHeatmap = dynamicHeatmap * heatmapDecay;
                 end
+            else
+                textPosition = [fliplr(upLPoint)  - [0, 10]];
+                %Display bbox
+                rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
+                    'linewidth',2);
+                % Display pedestrian ID
+                text(textPosition(1), textPosition(2), sprintf('ID: %d', currentID), 'Color', 'yellow', ...
+                'FontSize', 10, 'FontWeight', 'bold');
             end
         end
     end
@@ -175,7 +185,7 @@ for i=1:size(vid4D, 4)
 
     drawnow;
     hold off;
-    %pause(1);
+    pause(0.5);
 end
 
 %Calculate FN and FP percentages
@@ -215,43 +225,48 @@ for i = 1:length(track_ids)
     trajectories{i} = traj(:, 2:3); % only (x, y)
 end
 
-% Resample each trajectory to 10 points
-n_points = 10;
-n_trajs = length(trajectories);
-X = zeros(n_trajs, n_points * 2); % each row: [x1..x10 y1..y10]
-
-for i = 1:n_trajs
-    traj = trajectories{i};
-    traj_len = size(traj, 1);
-    if traj_len < 2, continue; end
-
-    t = linspace(1, traj_len, n_points);
-    x_interp = interp1(1:traj_len, traj(:, 1), t);
-    y_interp = interp1(1:traj_len, traj(:, 2), t);
-    
-    X(i, :) = [x_interp, y_interp];
-end
-
-% Remove zero rows
-X(~any(X, 2), :) = [];
-
-% Compute displacement features: [dx1..dx9 dy1..dy9]
-n_disp = n_points - 1;
-X_disp = zeros(size(X, 1), 2 * n_disp);
+allDisplacements = [];
 
 for i = 1:size(X, 1)
-    x = X(i, 1:n_points);
-    y = X(i, n_points+1:end);
+    x = trajectories{i}(:, 1);
+    y = trajectories{i}(:, 2);
     dx = diff(x);
     dy = diff(y);
-    X_disp(i, :) = [dx, dy];
+    D = [dx, dy];
+    allDisplacements = [allDisplacements; D];
 end
 
 % Run EM-GMM on displacement vectors
 K = 4;
-max_iters = 100;
-[mu, Sigma, pi_k, gamma, log_likelihoods] = em_gmm(X_disp, K, max_iters);
+max_iters = 1000;
+[idx, mu_init] = kmeans(allDisplacements, K);
+
+[mu, Sigma, pi_k, gamma, log_likelihoods] = em_gmm(allDisplacements, K, max_iters, mu_init, idx);
 [~, labels] = max(gamma, [], 2);
+
+plot(log_likelihoods(1:max_iters));
+xlabel('Iteration');
+ylabel('Log-Likelihood');
+title('EM-GMM Convergence');
+
+colors = lines(K);  % distinct colors
+
+figure;
+hold on;
+
+% 1. Plot the displacement vectors
+gscatter(allDisplacements(:,1), allDisplacements(:,2), labels);
+title('EM-GMM Displacement Clustering');
+xlabel('dx'); ylabel('dy');
+axis equal; grid on;
+
+% 2. Plot each Gaussian
+for k = 1:K
+    plot_gaussian(mu(k,:), Sigma(:,:,k), colors(k,:));
+end
+
+legend('Cluster 1', 'Cluster 2', 'Cluster 3', 'Cluster 4', 'Gaussians');
+
 
 % Plot clustered trajectories
 figure; hold on;

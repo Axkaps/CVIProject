@@ -1,25 +1,38 @@
 function [pedestrianDb, currentID, next_id] = pedestrianDetection(pedestrianDb, imgToProcess, regionProps, j, next_id, assigned, associationMatrix, regionIndex)
-        % regionIndex is the index of this region in the filtered list (1 to regnum)
+
         
         maxMatchScore = -inf;  % Reset for each detection
         best_match_idx = -1;
         max_trajec_len = 10;
-        padding = 10;
         centroid = regionProps(j).Centroid;
         bbox = regionProps(j).BoundingBox;
         currentID = [];
         intersectionThreshold = 0.5;
+
+        similarityThreshold = 1.2; 
+        distanceThreshold = 100;
         
+
+         % Before processing, check for pedestrians not seen for more than 5 frames
+        maxFramesAbsent = 5;
+        for k = 1:length(pedestrianDb)
+            if ~isempty(pedestrianDb(k).ID) && ~ismember(pedestrianDb(k).ID, assigned) && exist('frameNumber', 'var') && (frameNumber - pedestrianDb(k).last_seen) > maxFramesAbsent
+                % Reset pedestrian if not seen for more than 5 frames
+                pedestrianDb(k).ID = pedestrianDb(k).ID;
+                pedestrianDb(k).Centroid = [];
+                pedestrianDb(k).BoundingBox = [];
+                pedestrianDb(k).Trajectory = [];
+                pedestrianDb(k).Histogram = pedestrianDb(k).Histogram;
+                pedestrianDb(k).last_seen = 0;
+            end
+        end
+
         % Check for merge situation using the association matrix
         if exist('associationMatrix', 'var') && ~isempty(associationMatrix) && exist('regionIndex', 'var')
-            % Count how many ground truth objects are associated with this detection
-            % Use regionIndex instead of j to access the correct column
             detectionCol = sum(associationMatrix(:, regionIndex) > 0);
             
-            % If more than one pedestrian is inside this bounding box (merge situation)
             if detectionCol > 1
-                % In case of merge, don't process further
-                currentID = -1; % Use a special ID to indicate merge
+                currentID = -1;
                 return;
             end
         end
@@ -27,7 +40,7 @@ function [pedestrianDb, currentID, next_id] = pedestrianDetection(pedestrianDb, 
         % Check for intersection with bounding boxes from the last frame
         for k = 1:length(pedestrianDb)
             % Skip if this ID is already assigned in this frame
-            if ismember(pedestrianDb(k).ID, assigned)
+            if ismember(pedestrianDb(k).ID, assigned) | isempty(pedestrianDb(k).BoundingBox)
                 continue;
             end
             
@@ -39,7 +52,9 @@ function [pedestrianDb, currentID, next_id] = pedestrianDetection(pedestrianDb, 
                 currentID = pedestrianDb(k).ID;
                 pedestrianDb(k).Centroid = centroid;
                 pedestrianDb(k).BoundingBox = bbox;
-                
+                if exist('frameNumber', 'var')
+                    pedestrianDb(k).last_seen = frameNumber; % Update last seen frame
+                end
                 % Update trajectory
                 pedestrianDb(k).Trajectory = [pedestrianDb(k).Trajectory; centroid];
                 if size(pedestrianDb(k).Trajectory, 1) > max_trajec_len
@@ -50,37 +65,36 @@ function [pedestrianDb, currentID, next_id] = pedestrianDetection(pedestrianDb, 
             end
         end
         
-        % If we reach here, no strong intersection was found
-        % Continue with the original histogram and centroid-based matching
-        
-        % Crop the original image
         croppedImage = imcrop(imgToProcess, bbox);
-        
-        % Compute histogram for this croppedImage
         R = histcounts(croppedImage(:,:,1), 256);
         G = histcounts(croppedImage(:,:,2), 256);
         B = histcounts(croppedImage(:,:,3), 256);
         histCroppedImage = [R,G,B];
 
-        similarityThreshold = 1.2; 
-        distanceThreshold = 100;
         
         for k = 1:length(pedestrianDb)
             % Skip if this ID is already assigned in this frame
             if ismember(pedestrianDb(k).ID, assigned)
                 continue;
             end
-            % TODO: Fazer L2 norm
-            centroidDist = norm(centroid - pedestrianDb(k).Centroid);
-            centroidDistNorm = exp(-centroidDist / distanceThreshold);
+
+             % Handle empty centroid case as you requested
+            if isempty(pedestrianDb(k).Centroid)
+                centroidDistNorm = 0;
+                centroidDist = distanceThreshold - 0.1; % Set to threshold so it passes the check below
+            else
+                centroidDist = norm(centroid - pedestrianDb(k).Centroid);
+                centroidDistNorm = exp(-centroidDist / distanceThreshold);
+            end
             
             % Try to match using histogram and centroid distance
             for i = 1:length(pedestrianDb(k).Histogram)
                 bDistance = histogramDistance(pedestrianDb(k).Histogram{i}, histCroppedImage);
-
+                histDistNorm = exp(-bDistance / similarityThreshold);
+                
                 if bDistance < similarityThreshold && centroidDist < distanceThreshold
                     % Compute final match score
-                    matchScore = 1/bDistance + 1/centroidDist;
+                    matchScore = 1.2 * histDistNorm + 0.2 * centroidDistNorm;
 
                     if matchScore > maxMatchScore
                         maxMatchScore = matchScore;
@@ -95,16 +109,14 @@ function [pedestrianDb, currentID, next_id] = pedestrianDetection(pedestrianDb, 
             currentID = pedestrianDb(best_match_idx).ID;
             pedestrianDb(best_match_idx).Centroid = centroid;
             pedestrianDb(best_match_idx).BoundingBox = bbox;
-
+            if exist('frameNumber', 'var')
+                pedestrianDb(best_match_idx).last_seen = frameNumber; % Update last seen frame
+            end
             pedestrianDb(best_match_idx).Trajectory = [pedestrianDb(best_match_idx).Trajectory; centroid];
             if size(pedestrianDb(best_match_idx).Trajectory, 1) > max_trajec_len
                 pedestrianDb(best_match_idx).Trajectory(1, :) = []; % Remove oldest point
             end
         else
-            currentID = next_id;
-            pedestrianDb(end + 1) = struct("ID", next_id, "Centroid", centroid, ...
-                                         "BoundingBox", bbox, "Trajectory", centroid, ...
-                                         "Histogram", {{histCroppedImage}});
-            next_id = next_id + 1;
+            currentID = -1;
         end
 end
