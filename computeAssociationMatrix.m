@@ -1,4 +1,4 @@
-function associationMatrix = computeAssociationMatrix(groundTruth, regionProps, inds, currentFrame, threshold)
+function [successPercentage, associationMatrix] = computeAssociationMatrix(groundTruth, regionProps, inds, currentFrame, threshold)
 
     % Extract ground truth for current frame
     gtForFrame = groundTruth(groundTruth(:,1) == currentFrame, :);
@@ -33,8 +33,9 @@ function associationMatrix = computeAssociationMatrix(groundTruth, regionProps, 
             % Set binary association based on threshold
             if iou > threshold
                 associationMatrix(i, j) = 1;
-                
             end
+            successPercentage = successPercentage + iou;
         end
     end
+    successPercentage = successPercentage / (numGT);
 end

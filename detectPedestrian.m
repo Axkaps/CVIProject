@@ -60,9 +60,8 @@ for i=1:size(vid4D, 4)
     % Inside the for loop where regionProps are processed
     if regnum
         %[successPercentage, associationMatrixCellArray{i}] = computeAssociationMatrix(groundTruthMatrix, regionProps, inds, height, width, i, regnum);
-        associationMatrixCellArray{i} = computeAssociationMatrix(groundTruth, regionProps, inds, i, 0.15);
-
-        % successPercentageArray = [successPercentageArray, successPercentage];
+        [successPercentage, associationMatrixCellArray{i}] = computeAssociationMatrix(groundTruth, regionProps, inds, i, 0.15);
+        successPercentageArray = [successPercentageArray, successPercentage];
         
         for filtered_idx=1:length(inds)
             
